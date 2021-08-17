@@ -102,12 +102,12 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 
 	//saveIntervals := []int{4294000, 4294500, 4295000} //for stratosphere malicious
 	//saveIntervals := []int{9500000, 9600000, 9700000, 9800000, 9900000, 10000000, 11000000, 12000000, 15000000, 17000000, 20000000, 22000000}
-	saveIntervals := []int{1362277}
+	saveIntervals := []int{100000, 1362277}
 
 	flowDict := make(map[string][]interface{})
 	flowSave := make(map[string][]interface{})
 
-	ifFlowStatsShow := false
+	ifFlowStatsShow := true
 
 	mapKeys := make(map[string]int)
 	mapKeys["srcIP"], mapKeys["dstIP"], mapKeys["protocol"], mapKeys["srcPort"], mapKeys["dstPort"], mapKeys["flowDuration"], mapKeys["flowLength"], mapKeys["fwdFlowLength"], mapKeys["bwdFlowLength"], mapKeys["packetSizeTotal"], mapKeys["packetSizeMean"], mapKeys["packetSizeStd"], mapKeys["packetSizeMin"], mapKeys["packetSizeMax"], mapKeys["fwdPacketSizeTotal"], mapKeys["bwdPacketSizeTotal"], mapKeys["fwdPacketSizeMean"], mapKeys["bwdPacketSizeMean"], mapKeys["fwdPacketSizeStd"], mapKeys["bwdPacketSizeStd"], mapKeys["fwdPacketSizeMin"], mapKeys["bwdPacketSizeMin"], mapKeys["fwdPacketSizeMax"], mapKeys["bwdPacketSizeMax"], mapKeys["IATTotal"], mapKeys["IATMean"], mapKeys["IATStd"], mapKeys["IATMin"], mapKeys["IATMax"], mapKeys["fwdIATTotal"], mapKeys["bwdIATTotal"], mapKeys["fwdIATMean"], mapKeys["bwdIATMean"], mapKeys["fwdIATStd"], mapKeys["bwdIATStd"], mapKeys["fwdIATMin"], mapKeys["bwdIATMin"], mapKeys["fwdIATMax"], mapKeys["bwdIATMax"], mapKeys["flowStartTime"], mapKeys["flowPrevTime"], mapKeys["fwdFlowPrevTime"], mapKeys["bwdFlowPrevTime"], mapKeys["minPacketsBool"], mapKeys["fwdPacketSizeArr"], mapKeys["bwdPacketSizeArr"], mapKeys["fwdIATArr"], mapKeys["bwdIATArr"], mapKeys["IATArr"], mapKeys["packetSizeArr"] = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49
@@ -757,6 +757,7 @@ func fileProcess(flowSave map[string][]interface{}, mapKeys map[string]int, fnam
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
+
 	defer writer.Flush()
 
 	writer.Write([]string{"fiveTuple", "srcIP", "dstIP", "protocol", "srcPort", "dstPort", "flowDuration", "flowLength", "fwdFlowLength", "bwdFlowLength", "packetSizeTotal", "packetSizeMean", "packetSizeStd", "packetSizeMin", "packetSizeMax", "fwdPacketSizeTotal", "bwdPacketSizeTotal", "fwdPacketSizeMean", "bwdPacketSizeMean", "fwdPacketSizeStd", "bwdPacketSizeStd", "fwdPacketSizeMin", "bwdPacketSizeMin", "fwdPacketSizeMax", "bwdPacketSizeMax", "IATMean", "IATStd", "IATMin", "IATMax", "fwdIATTotal", "bwdIATTotal", "fwdIATMean", "bwdIATMean", "fwdIATStd", "bwdIATStd", "fwdIATMin", "bwdIATMin", "fwdIATMax", "bwdIATMax"})
