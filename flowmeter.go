@@ -1,8 +1,9 @@
-package main
+=package main
 
 import (
 	"bufio"
 	"encoding/csv"
+	"flowmeter/constants"
 	"fmt"
 	"log"
 	"math"
@@ -12,31 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/pkg/cri/constants"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 )
 
-var (
-	device           string = "eth0"
-	snapshotLen      int32  = 1024
-	promiscuous      bool   = false
-	err              error
-	timeout          time.Duration = 30 * time.Second
-	handle           *pcap.Handle
-	packetCount      int           = 0
-	minPacketPerFlow int           = 15 //24 //80 //10  //80
-	maxPacketPerFlow int           = 82 //100 //82
-	minTimeDuration  time.Duration = 0 * time.Millisecond
-	pcapFile         string        = ".pcap"
-	weightsFile      string        = "weights.txt"
-	interceptFile    string        = "intercept.txt"
-	meansFile        string        = "mean.txt"
-	stdFile          string        = "std.txt"
-)
-
 func main() {
-
 	ch := make(chan gopacket.Packet)
 	done := make(chan struct{}) // signal channel
 
@@ -53,14 +36,13 @@ func main() {
 
 	if ifLiveCapture {
 		// Open device
-		handle, err = pcap.OpenLive(device, snapshotLen, promiscuous, timeout)
+		constants.Handle, constants.Err = pcap.OpenLive(constants.Device, constants.SnapshotLen, constants.Promiscuous, constants.Timeout)
 		localIP = GetOutboundIP().String()
 		ifLocalIPKnown = true
 		fmt.Println("Live capture of packets.")
 	} else {
 		// Open file instead of device
-		pcapFile = filename + pcapFile
-		handle, err = pcap.OpenOffline(pcapFile)
+		constants.Handle, constants.Err = pcap.OpenOffline(filename + constants.PcapFile)
 
 		if ifLocalIPKnown {
 			localIP = "143.198.72.237" //"192.168.1.4" //"164.90.157.161" //"138.68.177.159" //"164.90.157.161" //"143.198.73.70" // Picked this from one of the Agent VMs.
@@ -71,16 +53,16 @@ func main() {
 		fmt.Println("Analyzing offline pcap files.")
 	}
 
-	//Just give 40 bytes per packet - continous by default read only enough
+	//Just give 40 bytes per packet - continuous by default read only enough
 
 	go flowMeter(ch, done, maxNumPackets, localIP, ifLocalIPKnown, filename)
 
-	if err != nil {
-		log.Fatal(err)
+	if constants.Err != nil {
+		log.Fatal(constants.Err)
 	}
-	defer handle.Close()
+	defer constants.Handle.Close()
 
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	packetSource := gopacket.NewPacketSource(constants.Handle, constants.Handle.LinkType())
 
 loop:
 	for packet := range packetSource.Packets() {
@@ -195,7 +177,7 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 
 			} else {
 
-				if flowDict[packet5Tuple][mapKeys["flowLength"]].(int) <= maxPacketPerFlow {
+				if flowDict[packet5Tuple][mapKeys["flowLength"]].(int) <= constants.MaxPacketPerFlow {
 					currIAT := packetTime.Sub(flowDict[packet5Tuple][mapKeys["flowPrevTime"]].(time.Time))
 					flowDict[packet5Tuple][mapKeys["IATArr"]] = append(flowDict[packet5Tuple][mapKeys["IATArr"]].([]time.Duration), currIAT)
 
@@ -301,7 +283,7 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 					flowDict[packet5Tuple][mapKeys["packetSizeMean"]] = mean(flowDict[packet5Tuple][mapKeys["packetSizeArr"]].([]int))
 					flowDict[packet5Tuple][mapKeys["packetSizeStd"]] = stdDev(flowDict[packet5Tuple][mapKeys["packetSizeArr"]].([]int))
 
-					if flowDict[packet5Tuple][mapKeys["flowLength"]].(int) >= minPacketPerFlow {
+					if flowDict[packet5Tuple][mapKeys["flowLength"]].(int) >= constants.MinPacketPerFlow {
 						flowDict[packet5Tuple][mapKeys["minPacketsBool"]] = true
 					}
 				}
@@ -311,16 +293,16 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 			_, ifSave := ifPresentInSlice(saveIntervals, numPackets)
 
 			if ifSave {
-				// if flowDict[packet5Tuple][mapKeys["flowLength"]].(int) <= maxPacketPerFlow {
+				// if flowDict[packet5Tuple][mapKeys["flowLength"]].(int) <= constants.MaxPacketPerFlow {
 
 				if len(flowDict) > 0 {
 					for flow5Tuple, values := range flowDict {
 
 						features := []float64{}
 
-						// fmt.Println(flow5Tuple, flowDict[flow5Tuple][mapKeys["flowLength"]], minPacketPerFlow, numPackets, " - Flow stats.")
+						// fmt.Println(flow5Tuple, flowDict[flow5Tuple][mapKeys["flowLength"]], constants.MinPacketPerFlow, numPackets, " - Flow stats.")
 
-						if (flowDict[flow5Tuple][mapKeys["flowLength"]].(int) >= minPacketPerFlow) && (flowDict[flow5Tuple][mapKeys["flowDuration"]].(time.Duration) >= minTimeDuration) {
+						if (flowDict[flow5Tuple][mapKeys["flowLength"]].(int) >= constants.MinPacketPerFlow) && (flowDict[flow5Tuple][mapKeys["flowDuration"]].(time.Duration) >= constants.MinTimeDuration) {
 							// Pupulate flowSave map with flows for which number of packets is beyond a given threshold
 							flowSave[flow5Tuple] = values
 
@@ -663,7 +645,7 @@ func stdScaler(x []float64, mu []float64, std []float64) []float64 {
 // Offline values of means , standard deviation from standard scaling and weights
 func modelParameters() ([]float64, float64, []float64, []float64) {
 	// Weights from logistic regression
-	f, errWt := os.Open(weightsFile)
+	f, errWt := os.Open(constants.WeightsFile)
 
 	if errWt != nil {
 		fmt.Println(errWt)
@@ -683,7 +665,7 @@ func modelParameters() ([]float64, float64, []float64, []float64) {
 	}
 
 	// Intercept from logistic regression
-	f, errIntercept := os.Open(interceptFile)
+	f, errIntercept := os.Open(constants.InterceptFile)
 
 	if errIntercept != nil {
 		fmt.Println(errIntercept)
@@ -703,7 +685,7 @@ func modelParameters() ([]float64, float64, []float64, []float64) {
 	}
 
 	// Means from standard scaling
-	f, errMean := os.Open(meansFile)
+	f, errMean := os.Open(constants.MeansFile)
 
 	if errMean != nil {
 		fmt.Println(errMean)
@@ -723,7 +705,7 @@ func modelParameters() ([]float64, float64, []float64, []float64) {
 	}
 
 	// Standard deviation from standard scaling
-	f, errStd := os.Open(stdFile)
+	f, errStd := os.Open(constants.StdFile)
 
 	if errStd != nil {
 		fmt.Println(errStd)
