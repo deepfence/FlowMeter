@@ -1,9 +1,10 @@
-=package main
+package main
 
 import (
 	"bufio"
 	"encoding/csv"
-	"flowmeter/constants"
+
+	//"flowmeter/constants"
 	"fmt"
 	"log"
 	"math"
@@ -13,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/pkg/cri/constants"
+	"github.com/deepfence/deepfence_flowmeter/constants"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
