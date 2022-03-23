@@ -154,3 +154,7 @@ Following is an example output of the code. In addition to classification of dat
 | <img width="758" alt="Screen Shot 2021-08-17 at 7 27 06 PM" src="https://user-images.githubusercontent.com/26308648/159634141-3f24394b-fec6-47f1-ac96-8c439f39899e.png"> | 
 |:--:| 
 | *Example output of the code.* |
+
+
+
+
