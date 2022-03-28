@@ -1,4 +1,4 @@
-module flowmeter
+module github.com/deepfence/deepfence_flowmeter
 
 go 1.16
 
