@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/csv"
 
 	//"flowmeter/constants"
 	"fmt"
@@ -14,7 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/deepfence/deepfence_flowmeter/common"
 	"github.com/deepfence/deepfence_flowmeter/constants"
+	"github.com/deepfence/deepfence_flowmeter/fileProcess"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -196,9 +197,9 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 
 							flowDict[packet5Tuple][mapKeys["fwdIATTotal"]] = flowDict[packet5Tuple][mapKeys["fwdIATTotal"]].(time.Duration) + currFwdIAT
 							flowDict[packet5Tuple][mapKeys["fwdIATArr"]] = append(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration), currFwdIAT)
-							fwdIATMin, fwdIATMax := minMaxTimeDuration(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][mapKeys["fwdIATMean"]] = meanTimeDuration(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][mapKeys["fwdIATStd"]] = stdDevTimeDuration(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration))
+							fwdIATMin, fwdIATMax := common.MinMaxTimeDuration(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration))
+							flowDict[packet5Tuple][mapKeys["fwdIATMean"]] = common.MeanTimeDuration(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration))
+							flowDict[packet5Tuple][mapKeys["fwdIATStd"]] = common.StdDevTimeDuration(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration))
 							flowDict[packet5Tuple][mapKeys["fwdIATMin"]] = fwdIATMin
 							flowDict[packet5Tuple][mapKeys["fwdIATMax"]] = fwdIATMax
 							flowDict[packet5Tuple][mapKeys["fwdFlowPrevTime"]] = packetTime
@@ -220,9 +221,9 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 
 							flowDict[packet5Tuple][mapKeys["bwdIATTotal"]] = flowDict[packet5Tuple][mapKeys["bwdIATTotal"]].(time.Duration) + currBwdIAT
 							flowDict[packet5Tuple][mapKeys["bwdIATArr"]] = append(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration), currBwdIAT)
-							bwdIATMin, bwdIATMax := minMaxTimeDuration(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][mapKeys["bwdIATMean"]] = meanTimeDuration(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][mapKeys["bwdIATStd"]] = stdDevTimeDuration(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration))
+							bwdIATMin, bwdIATMax := common.MinMaxTimeDuration(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration))
+							flowDict[packet5Tuple][mapKeys["bwdIATMean"]] = common.MeanTimeDuration(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration))
+							flowDict[packet5Tuple][mapKeys["bwdIATStd"]] = common.StdDevTimeDuration(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration))
 							flowDict[packet5Tuple][mapKeys["bwdIATMin"]] = bwdIATMin
 							flowDict[packet5Tuple][mapKeys["bwdIATMax"]] = bwdIATMax
 							flowDict[packet5Tuple][mapKeys["bwdFlowPrevTime"]] = packetTime
@@ -241,33 +242,33 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 					IATArr := append(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration), flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration)...)
 					//flowDict[packet5Tuple][mapKeys["IATTotal"]] = flowDict[packet5Tuple][mapKeys["IATTotal"]].(time.Duration) + currIAT
 					flowDict[packet5Tuple][mapKeys["IATTotal"]] = flowDict[packet5Tuple][mapKeys["fwdIATTotal"]].(time.Duration) + flowDict[packet5Tuple][mapKeys["bwdIATTotal"]].(time.Duration)
-					IATMin, IATMax := minMaxTimeDuration(IATArr)
+					IATMin, IATMax := common.MinMaxTimeDuration(IATArr)
 					flowDict[packet5Tuple][mapKeys["IATMin"]] = IATMin
 					flowDict[packet5Tuple][mapKeys["IATMax"]] = IATMax
-					flowDict[packet5Tuple][mapKeys["IATMean"]] = meanTimeDuration(IATArr)
+					flowDict[packet5Tuple][mapKeys["IATMean"]] = common.MeanTimeDuration(IATArr)
 					if len(IATArr) > 1 {
-						flowDict[packet5Tuple][mapKeys["IATStd"]] = stdDevTimeDuration(IATArr)
+						flowDict[packet5Tuple][mapKeys["IATStd"]] = common.StdDevTimeDuration(IATArr)
 					}
 
-					// fmt.Println("AA1: ", flowDict[packet5Tuple][mapKeys["fwdIATArr"]], sumTimeDuration(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration)), flowDict[packet5Tuple][mapKeys["fwdIATTotal"]])
-					// fmt.Println("AA2: ", flowDict[packet5Tuple][mapKeys["bwdIATArr"]], sumTimeDuration(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration)), flowDict[packet5Tuple][mapKeys["bwdIATTotal"]])
-					// fmt.Println("AA3: ", IATArr, sumTimeDuration(flowDict[packet5Tuple][mapKeys["IATArr"]].([]time.Duration)), flowDict[packet5Tuple][mapKeys["IATTotal"]])
+					// fmt.Println("AA1: ", flowDict[packet5Tuple][mapKeys["fwdIATArr"]], common.SumTimeDuration(flowDict[packet5Tuple][mapKeys["fwdIATArr"]].([]time.Duration)), flowDict[packet5Tuple][mapKeys["fwdIATTotal"]])
+					// fmt.Println("AA2: ", flowDict[packet5Tuple][mapKeys["bwdIATArr"]], common.SumTimeDuration(flowDict[packet5Tuple][mapKeys["bwdIATArr"]].([]time.Duration)), flowDict[packet5Tuple][mapKeys["bwdIATTotal"]])
+					// fmt.Println("AA3: ", IATArr, common.SumTimeDuration(flowDict[packet5Tuple][mapKeys["IATArr"]].([]time.Duration)), flowDict[packet5Tuple][mapKeys["IATTotal"]])
 					// fmt.Println(" ")
 					// fmt.Println(" ")
 
 					flowDict[packet5Tuple][mapKeys["flowPrevTime"]] = packetTime
 
-					fwdPacketSizeMin, fwdPacketSizeMax := minMax(flowDict[packet5Tuple][mapKeys["fwdPacketSizeArr"]].([]int))
-					bwdPacketSizeMin, bwdPacketSizeMax := minMax(flowDict[packet5Tuple][mapKeys["bwdPacketSizeArr"]].([]int))
+					fwdPacketSizeMin, fwdPacketSizeMax := common.MinMax(flowDict[packet5Tuple][mapKeys["fwdPacketSizeArr"]].([]int))
+					bwdPacketSizeMin, bwdPacketSizeMax := common.MinMax(flowDict[packet5Tuple][mapKeys["bwdPacketSizeArr"]].([]int))
 
 					flowDict[packet5Tuple][mapKeys["fwdPacketSizeTotal"]] = flowDict[packet5Tuple][mapKeys["fwdPacketSizeTotal"]].(int) + fwdPacketSize
 					flowDict[packet5Tuple][mapKeys["bwdPacketSizeTotal"]] = flowDict[packet5Tuple][mapKeys["bwdPacketSizeTotal"]].(int) + bwdPacketSize
 
-					flowDict[packet5Tuple][mapKeys["fwdPacketSizeMean"]] = mean(flowDict[packet5Tuple][mapKeys["fwdPacketSizeArr"]].([]int))
-					flowDict[packet5Tuple][mapKeys["bwdPacketSizeMean"]] = mean(flowDict[packet5Tuple][mapKeys["bwdPacketSizeArr"]].([]int))
+					flowDict[packet5Tuple][mapKeys["fwdPacketSizeMean"]] = common.Mean(flowDict[packet5Tuple][mapKeys["fwdPacketSizeArr"]].([]int))
+					flowDict[packet5Tuple][mapKeys["bwdPacketSizeMean"]] = common.Mean(flowDict[packet5Tuple][mapKeys["bwdPacketSizeArr"]].([]int))
 
-					flowDict[packet5Tuple][mapKeys["fwdPacketSizeStd"]] = stdDev(flowDict[packet5Tuple][mapKeys["fwdPacketSizeArr"]].([]int))
-					flowDict[packet5Tuple][mapKeys["bwdPacketSizeStd"]] = stdDev(flowDict[packet5Tuple][mapKeys["bwdPacketSizeArr"]].([]int))
+					flowDict[packet5Tuple][mapKeys["fwdPacketSizeStd"]] = common.StdDev(flowDict[packet5Tuple][mapKeys["fwdPacketSizeArr"]].([]int))
+					flowDict[packet5Tuple][mapKeys["bwdPacketSizeStd"]] = common.StdDev(flowDict[packet5Tuple][mapKeys["bwdPacketSizeArr"]].([]int))
 
 					flowDict[packet5Tuple][mapKeys["fwdPacketSizeMin"]] = fwdPacketSizeMin
 					flowDict[packet5Tuple][mapKeys["bwdPacketSizeMin"]] = bwdPacketSizeMin
@@ -278,11 +279,11 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 					// flowDict[packet5Tuple][mapKeys["packetSizeArr"]]
 					flowDict[packet5Tuple][mapKeys["packetSizeTotal"]] = flowDict[packet5Tuple][mapKeys["fwdPacketSizeTotal"]].(int) + flowDict[packet5Tuple][mapKeys["bwdPacketSizeTotal"]].(int)
 					//packetSizeArr := append(flowDict[packet5Tuple][mapKeys["fwdPacketSizeArr"]].([]int), flowDict[packet5Tuple][mapKeys["fwdPacketSizeArr"]].([]int)...)
-					packetSizeMin, packetSizeMax := minMax(flowDict[packet5Tuple][mapKeys["packetSizeArr"]].([]int))
+					packetSizeMin, packetSizeMax := common.MinMax(flowDict[packet5Tuple][mapKeys["packetSizeArr"]].([]int))
 					flowDict[packet5Tuple][mapKeys["packetSizeMin"]] = packetSizeMin
 					flowDict[packet5Tuple][mapKeys["packetSizeMax"]] = packetSizeMax
-					flowDict[packet5Tuple][mapKeys["packetSizeMean"]] = mean(flowDict[packet5Tuple][mapKeys["packetSizeArr"]].([]int))
-					flowDict[packet5Tuple][mapKeys["packetSizeStd"]] = stdDev(flowDict[packet5Tuple][mapKeys["packetSizeArr"]].([]int))
+					flowDict[packet5Tuple][mapKeys["packetSizeMean"]] = common.Mean(flowDict[packet5Tuple][mapKeys["packetSizeArr"]].([]int))
+					flowDict[packet5Tuple][mapKeys["packetSizeStd"]] = common.StdDev(flowDict[packet5Tuple][mapKeys["packetSizeArr"]].([]int))
 
 					if flowDict[packet5Tuple][mapKeys["flowLength"]].(int) >= constants.MinPacketPerFlow {
 						flowDict[packet5Tuple][mapKeys["minPacketsBool"]] = true
@@ -291,7 +292,7 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 
 			}
 
-			_, ifSave := ifPresentInSlice(saveIntervals, numPackets)
+			_, ifSave := common.IfPresentInSlice(saveIntervals, numPackets)
 
 			if ifSave {
 				// if flowDict[packet5Tuple][mapKeys["flowLength"]].(int) <= constants.MaxPacketPerFlow {
@@ -348,7 +349,7 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 				}
 
 				fmt.Println("Saving3", numPackets)
-				fileProcess(flowSave, mapKeys, fname+"_flow_stats")
+				fileProcess.FileSave(flowSave, mapKeys, fname+"_flow_stats")
 			}
 		}
 
@@ -619,79 +620,4 @@ func modelParameters() ([]float64, float64, []float64, []float64) {
 	}
 
 	return weights, intercept[0], meanArrOffline, stdArrOffline
-}
-
-// Save file
-func fileProcess(flowSave map[string][]interface{}, mapKeys map[string]int, fname string) {
-	fmt.Println("Saving4")
-	// fmt.Println(flowSave)
-
-	file, err := os.Create(fname + ".csv")
-
-	checkErrorFileSave("Cannot create file", err)
-
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-
-	defer writer.Flush()
-
-	writer.Write([]string{"fiveTuple", "srcIP", "dstIP", "protocol", "srcPort", "dstPort", "flowDuration", "flowLength", "fwdFlowLength", "bwdFlowLength", "packetSizeTotal", "packetSizeMean", "packetSizeStd", "packetSizeMin", "packetSizeMax", "fwdPacketSizeTotal", "bwdPacketSizeTotal", "fwdPacketSizeMean", "bwdPacketSizeMean", "fwdPacketSizeStd", "bwdPacketSizeStd", "fwdPacketSizeMin", "bwdPacketSizeMin", "fwdPacketSizeMax", "bwdPacketSizeMax", "IATMean", "IATStd", "IATMin", "IATMax", "fwdIATTotal", "bwdIATTotal", "fwdIATMean", "bwdIATMean", "fwdIATStd", "bwdIATStd", "fwdIATMin", "bwdIATMin", "fwdIATMax", "bwdIATMax"})
-
-	data := []interface{}{}
-
-	for flow5Tuple, values := range flowSave {
-
-		flowArr := []interface{}{flow5Tuple, values[mapKeys["srcIP"]], values[mapKeys["dstIP"]], values[mapKeys["protocol"]], values[mapKeys["srcPort"]], values[mapKeys["dstPort"]], float64(values[mapKeys["flowDuration"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["flowLength"]].(int)), float64(values[mapKeys["fwdFlowLength"]].(int)), float64(values[mapKeys["bwdFlowLength"]].(int)), float64(values[mapKeys["packetSizeTotal"]].(int)), values[mapKeys["packetSizeMean"]].(float64), values[mapKeys["packetSizeStd"]].(float64), float64(values[mapKeys["packetSizeMin"]].(int)), float64(values[mapKeys["packetSizeMax"]].(int)), float64(values[mapKeys["fwdPacketSizeTotal"]].(int)), float64(values[mapKeys["bwdPacketSizeTotal"]].(int)), values[mapKeys["fwdPacketSizeMean"]].(float64), values[mapKeys["bwdPacketSizeMean"]].(float64), values[mapKeys["fwdPacketSizeStd"]].(float64), values[mapKeys["bwdPacketSizeStd"]].(float64), float64(values[mapKeys["fwdPacketSizeMin"]].(int)), float64(values[mapKeys["bwdPacketSizeMin"]].(int)), float64(values[mapKeys["fwdPacketSizeMax"]].(int)), float64(values[mapKeys["bwdPacketSizeMax"]].(int)), float64(values[mapKeys["IATMean"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["IATStd"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["IATMin"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["IATMax"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["fwdIATTotal"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["bwdIATTotal"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["fwdIATMean"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["bwdIATMean"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["fwdIATStd"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["bwdIATStd"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["fwdIATMin"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["bwdIATMin"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["fwdIATMax"]].(time.Duration) / time.Nanosecond), float64(values[mapKeys["bwdIATMax"]].(time.Duration) / time.Nanosecond)}
-
-		data = append(data, flowArr)
-	}
-
-	for _, value := range data {
-		modValue := modifyArrTypeFileSave(value.([]interface{}))
-
-		err := writer.Write(modValue)
-
-		checkErrorFileSave("Cannot write to file", err)
-	}
-
-}
-
-// Type cast arrays for saving of file
-func modifyArrTypeFileSave(array []interface{}) []string {
-	modArray := []string{}
-
-	value := ""
-
-	for i := 0; i < len(array); i++ {
-		_, ok := array[i].(string)
-
-		if ok {
-			value = array[i].(string)
-		} else {
-			value = fmt.Sprintf("%f", array[i])
-		}
-
-		modArray = append(modArray, value)
-	}
-
-	return modArray
-}
-
-// Check errors during saving of file
-func checkErrorFileSave(message string, err error) {
-	if err != nil {
-		log.Fatal(message, err)
-	}
-}
-
-// Takes a slice and looks for an element in it. If found it will
-// return it's key, otherwise it will return -1 and a bool of false.
-func ifPresentInSlice(slice []int, val int) (int, bool) {
-	for i, item := range slice {
-		if item == val {
-			return i, true
-		}
-	}
-	return -1, false
 }
