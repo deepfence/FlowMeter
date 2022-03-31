@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Save file
+// Save file.
 func FileSave(flowSave map[string][]interface{}, mapKeys map[string]int, fname string) {
 	fmt.Println("Saving4")
 	// fmt.Println(flowSave)
@@ -44,7 +44,7 @@ func FileSave(flowSave map[string][]interface{}, mapKeys map[string]int, fname s
 
 }
 
-// Type cast arrays for saving of file
+// Type cast arrays for saving of file.
 func ModifyArrTypeFileSave(array []interface{}) []string {
 	modArray := []string{}
 
@@ -65,7 +65,7 @@ func ModifyArrTypeFileSave(array []interface{}) []string {
 	return modArray
 }
 
-// Check errors during saving of file
+// Check errors during saving of file.
 func CheckErrorFileSave(message string, err error) {
 	if err != nil {
 		log.Fatal(message, err)

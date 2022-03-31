@@ -95,7 +95,7 @@ func Mean(array []int) float64 {
 	}
 }
 
-// stdDev (float64 datatype)
+// stdDev (float64 datatype.)
 func StdDev(array []int) float64 {
 	if len(array) == 0 {
 		return 0.0

@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bufio"
 
 	//"flowmeter/constants"
 	"fmt"
 	"log"
-	"math"
 	"net"
 	"os"
 	"strconv"
@@ -16,6 +14,7 @@ import (
 	"github.com/deepfence/deepfence_flowmeter/common"
 	"github.com/deepfence/deepfence_flowmeter/constants"
 	"github.com/deepfence/deepfence_flowmeter/fileProcess"
+	"github.com/deepfence/deepfence_flowmeter/ml"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -100,7 +99,7 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 	mapLabels[0], mapLabels[1], mapLabels[2], mapLabels[3], mapLabels[4], mapLabels[5], mapLabels[6], mapLabels[7], mapLabels[8], mapLabels[9], mapLabels[10], mapLabels[11], mapLabels[12], mapLabels[13], mapLabels[14], mapLabels[15], mapLabels[16], mapLabels[17], mapLabels[18], mapLabels[19], mapLabels[20], mapLabels[21], mapLabels[22], mapLabels[23], mapLabels[24], mapLabels[25], mapLabels[26], mapLabels[27], mapLabels[28], mapLabels[29], mapLabels[30], mapLabels[31], mapLabels[32], mapLabels[33], mapLabels[34], mapLabels[35], mapLabels[36], mapLabels[37], mapLabels[38], mapLabels[39], mapLabels[40] = "Source IP", "Dest IP", "Protocol", "Source Port", "Dest Port", "Flow Duration", "Flow Length", "Fwd Flow Length", "Bwd Flow Length", "Packet Size Total", "Packet Size Mean", "Packet Size Std", "Packet Size Min", "Packet Size Max", "Fwd Packet Size Total", "Bwd Packet Size Total", "Fwd Packet Size Mean", "Bwd Packet Size Mean", "Fwd Packet Size Std", "Bwd Packet Size Std", "Fwd Packet Size Min", "Bwd Packet Size Min", "Fwd Packet Size Max", "Bwd Packet Size Max", "IAT Total", "IAT Mean", "IAT Std", "IAT Min", "IAT Max", "Fwd IAT Total", "Bwd IAT Total", "Fwd IAT Mean", "Bwd IAT Mean", "Fwd IAT Std", "Bwd IAT Std", "Fwd IAT Min", "Bwd IAT Min", "Fwd IAT Max", "Bwd IAT Max", "Flow Start Time", "Flow Latest Time"
 
 	// Import model parameters (weight, scaling - mean, standard deviations)
-	wt, intercept, meanScale, stdScale := modelParameters()
+	wt, intercept, meanScale, stdScale := ml.ModelParameters()
 
 	numPackets := 0
 
@@ -314,10 +313,10 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 							if ifFlowStatsShow {
 
 								// Scaling of array and ML prediction
-								scaledFeature := stdScaler(features, meanScale, stdScale)
-								yPred := getCategory(binaryClassifier(sigmoid(netInput(wt, intercept, scaledFeature))))
+								scaledFeature := ml.StdScaler(features, meanScale, stdScale)
+								yPred := ml.GetCategory(ml.BinaryClassifier(ml.Sigmoid(ml.NetInput(wt, intercept, scaledFeature))))
 
-								fmt.Println(flow5Tuple, ": ", yPred, sigmoid(netInput(wt, intercept, scaledFeature)))
+								fmt.Println(flow5Tuple, ": ", yPred, ml.Sigmoid(ml.NetInput(wt, intercept, scaledFeature)))
 								fmt.Println(" ")
 
 								// Print flow statistics
@@ -491,133 +490,4 @@ func reverse5Tuple(fTuple string) string {
 	srcIP, dstIP, protocol, srcPort, dstPort := strings.Split(fTuple, "--")[0], strings.Split(fTuple, "--")[1], strings.Split(fTuple, "--")[2], strings.Split(fTuple, "--")[3], strings.Split(fTuple, "--")[4]
 
 	return dstIP + "--" + srcIP + "--" + protocol + "--" + dstPort + "--" + srcPort
-}
-
-func getCategory(num int) string {
-	if num == 0 {
-		return "Benign"
-	} else {
-		return "Malicious"
-	}
-}
-
-//Activation function - two class classifier
-func binaryClassifier(z float64) int {
-	if z >= 0.5 {
-		return 1
-	} else {
-		return 0
-	}
-}
-
-//Sigmoid function
-func sigmoid(z float64) float64 {
-	return 1.0 / (1 + math.Exp(-1*z))
-}
-
-//Net input (z)
-func netInput(w []float64, intercept float64, x []float64) float64 {
-	var z float64 = 0
-
-	for i := 0; i < len(x); i++ {
-		z += (w[i] * x[i])
-	}
-
-	return z + intercept
-}
-
-// Standard Scaler
-func stdScaler(x []float64, mu []float64, std []float64) []float64 {
-	scaledX := []float64{}
-
-	for i := 0; i < len(x); i++ {
-		scaledX = append(scaledX, (x[i]-mu[i])/std[i])
-	}
-
-	return scaledX
-}
-
-// Offline values of means , standard deviation from standard scaling and weights
-func modelParameters() ([]float64, float64, []float64, []float64) {
-	// Weights from logistic regression
-	f, errWt := os.Open(constants.WeightsFile)
-
-	if errWt != nil {
-		fmt.Println(errWt)
-	}
-
-	defer f.Close()
-
-	scannerWt := bufio.NewScanner(f)
-	scannerWt.Split(bufio.ScanWords)
-
-	weights := []float64{}
-
-	for scannerWt.Scan() {
-		if s, errWt := strconv.ParseFloat(scannerWt.Text(), 32); errWt == nil {
-			weights = append(weights, s)
-		}
-	}
-
-	// Intercept from logistic regression
-	f, errIntercept := os.Open(constants.InterceptFile)
-
-	if errIntercept != nil {
-		fmt.Println(errIntercept)
-	}
-
-	defer f.Close()
-
-	scannerIntercept := bufio.NewScanner(f)
-	scannerIntercept.Split(bufio.ScanWords)
-
-	intercept := []float64{}
-
-	for scannerIntercept.Scan() {
-		if s, errIntercept := strconv.ParseFloat(scannerIntercept.Text(), 32); errIntercept == nil {
-			intercept = append(intercept, s)
-		}
-	}
-
-	// Means from standard scaling
-	f, errMean := os.Open(constants.MeansFile)
-
-	if errMean != nil {
-		fmt.Println(errMean)
-	}
-
-	defer f.Close()
-
-	scannerMean := bufio.NewScanner(f)
-	scannerMean.Split(bufio.ScanWords)
-
-	meanArrOffline := []float64{}
-
-	for scannerMean.Scan() {
-		if s, errMean := strconv.ParseFloat(scannerMean.Text(), 32); errMean == nil {
-			meanArrOffline = append(meanArrOffline, s)
-		}
-	}
-
-	// Standard deviation from standard scaling
-	f, errStd := os.Open(constants.StdFile)
-
-	if errStd != nil {
-		fmt.Println(errStd)
-	}
-
-	defer f.Close()
-
-	scannerStd := bufio.NewScanner(f)
-	scannerStd.Split(bufio.ScanWords)
-
-	stdArrOffline := []float64{}
-
-	for scannerStd.Scan() {
-		if s, errStd := strconv.ParseFloat(scannerStd.Text(), 32); errStd == nil {
-			stdArrOffline = append(stdArrOffline, s)
-		}
-	}
-
-	return weights, intercept[0], meanArrOffline, stdArrOffline
 }
