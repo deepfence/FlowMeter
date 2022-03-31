@@ -85,7 +85,7 @@ func flowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 
 	//saveIntervals := []int{4294000, 4294500, 4295000} //for stratosphere malicious
 	//saveIntervals := []int{9500000, 9600000, 9700000, 9800000, 9900000, 10000000, 11000000, 12000000, 15000000, 17000000, 20000000, 22000000}
-	saveIntervals := []int{100000, 1362277}
+	saveIntervals := []int{1500000, 2500000, 3000000, 4000000, 5000000, 7000000}
 
 	flowDict := make(map[string][]interface{})
 	flowSave := make(map[string][]interface{})
@@ -490,113 +490,6 @@ func reverse5Tuple(fTuple string) string {
 	srcIP, dstIP, protocol, srcPort, dstPort := strings.Split(fTuple, "--")[0], strings.Split(fTuple, "--")[1], strings.Split(fTuple, "--")[2], strings.Split(fTuple, "--")[3], strings.Split(fTuple, "--")[4]
 
 	return dstIP + "--" + srcIP + "--" + protocol + "--" + dstPort + "--" + srcPort
-}
-
-// Min or max (time.Duration datatype)
-func minMaxTimeDuration(array []time.Duration) (time.Duration, time.Duration) {
-	if len(array) == 0 {
-		return 0 * time.Microsecond, 0 * time.Microsecond
-	} else {
-		var max time.Duration = array[0]
-		var min time.Duration = array[0]
-
-		for j := 1; j < len(array); j++ {
-			value := array[j]
-			if max < value {
-				max = value
-			}
-			if min > value {
-				min = value
-			}
-		}
-		return min, max
-	}
-}
-
-// Sum (time.Duration datatype)
-func sumTimeDuration(array []time.Duration) time.Duration {
-	var result time.Duration = 0 * time.Microsecond
-	for _, v := range array {
-		result += v
-	}
-
-	return result
-}
-
-// Mean (time.Duration datatype)
-func meanTimeDuration(array []time.Duration) time.Duration {
-	sumArr := float64(sumTimeDuration(array)/time.Microsecond) / float64(len(array))
-
-	return time.Duration(sumArr) * time.Microsecond
-}
-
-// stdDev (time.Duration datatype)
-func stdDevTimeDuration(array []time.Duration) time.Duration {
-
-	square := float64(0)
-
-	for j := 1; j < len(array); j++ {
-		square += float64((array[j]-meanTimeDuration(array))/time.Microsecond) * float64((array[j]-meanTimeDuration(array))/time.Microsecond)
-	}
-
-	return time.Duration(math.Sqrt(square/float64(len(array)))) * time.Microsecond
-
-}
-
-// Min or max function (int datatype)
-func minMax(array []int) (int, int) {
-	if len(array) == 0 {
-		return 0, 0
-	} else {
-		var max int = array[0]
-		var min int = array[0]
-		for _, value := range array {
-			if max < value {
-				max = value
-			}
-			if min > value {
-				min = value
-			}
-		}
-		return min, max
-	}
-}
-
-// Sum (int datatype)
-func sum(array []int) int {
-	var result int = 0
-	for _, v := range array {
-		result += v
-	}
-
-	return result
-}
-
-// Mean (float64 datatype)
-func mean(array []int) float64 {
-	if len(array) == 0 {
-		return 0.0
-	} else {
-		sumArr := float64(sum(array)) / float64(len(array))
-
-		return float64(sumArr)
-	}
-}
-
-// stdDev (float64 datatype)
-func stdDev(array []int) float64 {
-	if len(array) == 0 {
-		return 0.0
-	} else {
-		square := float64(0)
-
-		for _, v := range array {
-			square += (float64(v) - mean(array)) * (float64(v) - mean(array))
-		}
-
-		return math.Sqrt(square / float64(len(array)))
-	}
-
 }
 
 func getCategory(num int) string {
