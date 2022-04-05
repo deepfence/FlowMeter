@@ -38,7 +38,7 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 		// 	fmt.Println(" ")
 		// }
 
-		packet5Tuple, reverseTuple, packetSize, packetTime := packetAnalyzer.PacketInfo(packet)
+		packet5Tuple, reverseTuple, packetSize, packetTime := PacketInfo(packet)
 
 		if reverseTuple != "nil" {
 
