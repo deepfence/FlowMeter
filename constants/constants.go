@@ -22,6 +22,8 @@ const (
 )
 
 var (
-	Handle *pcap.Handle
-	Err    error
+	Handle        *pcap.Handle
+	Err           error
+	SaveIntervals = []int{1500000, 2500000, 3000000, 4000000, 5000000, 7000000}
+	//SaveIntervals = []int{5000}
 )
