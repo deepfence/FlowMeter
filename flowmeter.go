@@ -1,8 +1,6 @@
 package main
 
 import (
-
-	//"flowmeter/constants"
 	"fmt"
 	"log"
 	"os"
@@ -71,5 +69,4 @@ loop:
 		//fmt.Println("Closing.")
 
 	}
-
 }
