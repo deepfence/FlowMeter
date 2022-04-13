@@ -16,8 +16,6 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 	flowDict := make(map[string][]interface{})
 	flowSave := make(map[string][]interface{})
 
-	ifFlowStatsShow := false
-
 	// Import model parameters (weight, scaling - mean, standard deviations)
 	wt, intercept, meanScale, stdScale := ml.ModelParameters()
 
@@ -233,7 +231,7 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 							// Create feature array for machine learning (ML) analysis
 							features = append(features, values[constants.MapKeys["packetSizeMean"]].(float64), values[constants.MapKeys["packetSizeStd"]].(float64), float64(values[constants.MapKeys["packetSizeMin"]].(int)), float64(values[constants.MapKeys["packetSizeMax"]].(int)), values[constants.MapKeys["fwdPacketSizeMean"]].(float64), values[constants.MapKeys["bwdPacketSizeMean"]].(float64), values[constants.MapKeys["fwdPacketSizeStd"]].(float64), values[constants.MapKeys["bwdPacketSizeStd"]].(float64), float64(values[constants.MapKeys["fwdPacketSizeMin"]].(int)), float64(values[constants.MapKeys["bwdPacketSizeMin"]].(int)), float64(values[constants.MapKeys["fwdPacketSizeMax"]].(int)), float64(values[constants.MapKeys["bwdPacketSizeMax"]].(int)), float64(flowDict[flow5Tuple][constants.MapKeys["flowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["fwdFlowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["bwdFlowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["packetSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["fwdPacketSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["bwdPacketSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond))
 
-							if ifFlowStatsShow {
+							if constants.IfFlowStatsVerbose {
 
 								// Scaling of array and ML prediction
 								scaledFeature := ml.StdScaler(features, meanScale, stdScale)
