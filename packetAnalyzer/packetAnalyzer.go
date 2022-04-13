@@ -26,10 +26,12 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 	for packet := range ch {
 		numPackets++
 
-		// if numPackets > 0 {
-		// 	fmt.Println("Num packets: ", numPackets)
-		// 	fmt.Println(" ")
-		// }
+		if constants.Verbose {
+			if numPackets > 0 {
+				fmt.Println("Num packets: ", numPackets)
+				fmt.Println(" ")
+			}
+		}
 
 		packet5Tuple, reverseTuple, packetSize, packetTime := PacketInfo(packet)
 
