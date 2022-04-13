@@ -66,7 +66,10 @@ loop:
 			close(done)
 			break loop
 		}
-		//fmt.Println("Closing.")
+
+		if constants.Verbose {
+			fmt.Println("Closing.")
+		}
 
 	}
 }
