@@ -268,7 +268,7 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 
 				}
 
-				fmt.Println("Saving3", numPackets, " ", constants.Kk1)
+				fmt.Println("Saving3", numPackets)
 				//fileProcess.FileSave(flowSave, constants.MapKeys, fname+"_flow_stats")
 			}
 		}

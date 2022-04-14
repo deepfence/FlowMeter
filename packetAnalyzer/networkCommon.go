@@ -14,7 +14,6 @@ import (
 
 // Function to get information from packet layers.
 func PacketInfo(packet gopacket.Packet) (string, string, int, time.Time) {
-
 	var connection string = ""
 
 	packetData := strings.Split(packet.String(), "\n")[0]
@@ -119,7 +118,6 @@ func PacketInfo(packet gopacket.Packet) (string, string, int, time.Time) {
 	} else {
 		return connection, "nil", packetSize, packetTime
 	}
-
 }
 
 // GetOutboundIP: Get preferred outbound ip of this machine.
