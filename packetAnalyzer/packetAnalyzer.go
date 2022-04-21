@@ -229,6 +229,7 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 							flowSave[flow5Tuple] = values
 
 							// Create feature array for machine learning (ML) analysis
+// Would be great to have a "Feature struct" to hide this big line behind a "New(values map[string]interface{}) Feature" function
 							features = append(features, values[constants.MapKeys["packetSizeMean"]].(float64), values[constants.MapKeys["packetSizeStd"]].(float64), float64(values[constants.MapKeys["packetSizeMin"]].(int)), float64(values[constants.MapKeys["packetSizeMax"]].(int)), values[constants.MapKeys["fwdPacketSizeMean"]].(float64), values[constants.MapKeys["bwdPacketSizeMean"]].(float64), values[constants.MapKeys["fwdPacketSizeStd"]].(float64), values[constants.MapKeys["bwdPacketSizeStd"]].(float64), float64(values[constants.MapKeys["fwdPacketSizeMin"]].(int)), float64(values[constants.MapKeys["bwdPacketSizeMin"]].(int)), float64(values[constants.MapKeys["fwdPacketSizeMax"]].(int)), float64(values[constants.MapKeys["bwdPacketSizeMax"]].(int)), float64(flowDict[flow5Tuple][constants.MapKeys["flowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["fwdFlowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["bwdFlowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["packetSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["fwdPacketSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond), float64(flowDict[flow5Tuple][constants.MapKeys["bwdPacketSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Nanosecond))
 
 							if constants.IfFlowStatsVerbose {
@@ -254,6 +255,7 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 								fmt.Println(" ")
 							}
 
+// Can we remove the following entirely?
 							// fmt.Println("Number of saved flows:", len(flowSave))
 
 							// Delete flow key if flow is benign
@@ -267,7 +269,6 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 					}
 
 				}
-
 				fmt.Println("Saving3", numPackets)
 				//fileProcess.FileSave(flowSave, constants.MapKeys, fname+"_flow_stats")
 			}

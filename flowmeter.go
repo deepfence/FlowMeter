@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	// Using https://github.com/sirupsen/logrus will give us more options
 	"log"
 	"os"
 	"strconv"
@@ -16,12 +17,15 @@ func main() {
 	ch := make(chan gopacket.Packet)
 	done := make(chan struct{}) // signal channel
 
+	// It is good practice to use "flags": https://pkg.go.dev/flag as they allow better control and avoid crashes
 	ifLiveCapture, _ := strconv.ParseBool(os.Args[1])
 	filename := os.Args[2]
 	maxNumPackets, _ := strconv.Atoi(os.Args[3])
 	ifLocalIPKnown, _ := strconv.ParseBool(os.Args[4])
 	localIP := ""
 
+	// It might be better to use fmt.Infof instead of Println, this way we can control what to show (debug/info/error)
+	// We can keep Println exclusively for outputting the results for instance (assuming they can be parsed later on)
 	fmt.Println("Live Capure: ", ifLiveCapture)
 	fmt.Println("Target max number packets: ", maxNumPackets)
 
@@ -67,6 +71,7 @@ loop:
 			break loop
 		}
 
+		// The verbose might be resolved with logrus
 		if constants.Verbose {
 			fmt.Println("Closing.")
 		}
