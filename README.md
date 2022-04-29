@@ -142,7 +142,7 @@ go build -o flowmeter .
 # Download pcap files.
 mkdir packets
 
-https://deepfence-public.s3.amazonaws.com/pcap-datasets/webgoat.pcap -P packets
+wget https://deepfence-public.s3.amazonaws.com/pcap-datasets/webgoat.pcap -P packets
 wget https://deepfence-public.s3.amazonaws.com/pcap-datasets/benign_2017-05-02_kali-normal22.pcap -P packets
 
 ./flowmeter -ifLiveCapture=false -fname=webgoat -maxNumPackets=40000000 -ifLocalIPKnown false
