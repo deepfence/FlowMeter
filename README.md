@@ -40,7 +40,7 @@ wget https://deepfence-public.s3.amazonaws.com/pcap-datasets/benign_2017-05-02_k
 
  - **Malicious:**
 ``` 
-wget https://pcap-datasets.s3.amazonaws.com/webgoat.pcap
+wget https://deepfence-public.s3.amazonaws.com/pcap-datasets/webgoat.pcap
 ```    
 
 Additionally, one can also use sample data from various sources like the datasets mentioned below, or gather packet captures using [PacketStreamer](https://github.com/deepfence/PacketStreamer) or other pcap tools.
@@ -142,7 +142,7 @@ go build -o flowmeter .
 # Download pcap files.
 mkdir packets
 
-wget https://pcap-datasets.s3.amazonaws.com/webgoat.pcap -P packets
+https://deepfence-public.s3.amazonaws.com/pcap-datasets/webgoat.pcap -P packets
 wget https://deepfence-public.s3.amazonaws.com/pcap-datasets/benign_2017-05-02_kali-normal22.pcap -P packets
 
 ./flowmeter -ifLiveCapture=false -fname=webgoat -maxNumPackets=40000000 -ifLocalIPKnown false
