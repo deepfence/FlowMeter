@@ -21,13 +21,7 @@ const sidebars = {
     },    
   
     "flowmeter/index",
-    {
-      type: 'category',
-      label: 'QuickStart',
-      items: [
-        'flowmeter/quickstart',
-      ],
-    },
+    'flowmeter/quickstart',
 
     {
       type: 'category',

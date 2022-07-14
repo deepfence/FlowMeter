@@ -1,17 +1,8 @@
 ---
-title: Build and Run
+title: FlowMeter QuickStart
 ---
 
 # Quick Start
-
-## Overview
-
-FlowMeter observes packets, obtains a rich set of features from them, constructs flows and generates output csv files for these flows.
-
-Using these output csv files, an ML model can be trained to classify packets as benign or malicious.
-
-Finallty, weights obtained from the trained ML models can be fed into FlowMeter, which can then be used to classify packets as malicious or benign.
-
 
 ## Build FlowMeter
 

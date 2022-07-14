@@ -1,11 +1,10 @@
 ---
-title: Introduction to Flowmeter
+title: Introduction to FlowMeter
 ---
 
+# FlowMeter
 
-# Deepfence FlowMeter
-
-FlowMeter is an experimental utility built to analyse and classify packets by looking at packet headers. We use FlowMeter internally to quickly analyse and label packets.
+Deepfence FlowMeter is an experimental utility built to analyse and classify packets by looking at packet headers. We use FlowMeter internally to quickly analyse and label packets.
 
 ## Primary design goals
 
@@ -28,4 +27,4 @@ Deepfence FlowMeter categorizes packets into flows and shows a rich ensemble of 
 
 ## When to use FlowMeter
 
-FlowMeter is an experimental utility. One area of investigation to better understand how to rapidly filter traffic based on lightweight metadata such as arrival time, packet size, and flow length. When inspecting large datasets or live datastreams, FlowMeter calculations could discard flows that have a very high probability of benign. The resulting packets could then be processed in depth to look for indicators of attack.
+Deepfence FlowMeter is an experimental utility. One area of investigation to better understand how to rapidly filter traffic based on lightweight metadata such as arrival time, packet size, and flow length. When inspecting large datasets or live datastreams, FlowMeter calculations could discard flows that have a very high probability of benign. The resulting packets could then be processed in depth to look for indicators of attack.
