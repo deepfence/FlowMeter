@@ -27,8 +27,8 @@ const sidebars = {
       type: 'category',
       label: 'Advanced Usage',
       items: [
-        'flowmeter/Advanced/datasets',
-        'flowmeter/Advanced/analysis',
+        'flowmeter/using/datasets',
+        'flowmeter/using/analysis',
       ],
     },
   ],
