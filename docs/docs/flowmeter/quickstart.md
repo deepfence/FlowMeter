@@ -8,7 +8,7 @@ title: FlowMeter QuickStart
 
 Build FlowMeter from source using the golang toolchain.
 
-```
+```bash
 git clone https://github.com/deepfence/FlowMeter.git
 cd FlowMeter/pkg
 
@@ -21,7 +21,7 @@ go build -o flowmeter .
 
 ## Obtain Sample Training Data
 
-```
+```bash
 # Download pcap files.
 mkdir packets
 
@@ -35,7 +35,7 @@ wget https://deepfence-public.s3.amazonaws.com/pcap-datasets/benign_2017-05-02_k
 
 ## Generate ML parameters and classify packets:
 
-```
+```bash
 cd FlowMeter/assets
 
 python Deepfence_ML_flowmeter.py

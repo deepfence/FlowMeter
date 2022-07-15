@@ -12,13 +12,13 @@ The tests in the repo used the following sample packet datasets:
 
 ### Benign Packets
 
-``` 
+```bash
 wget https://deepfence-public.s3.amazonaws.com/pcap-datasets/benign_2017-05-02_kali-normal22.pcap
 ```
 
 ### Malicious Packets
 
-``` 
+```bash 
 wget https://deepfence-public.s3.amazonaws.com/pcap-datasets/webgoat.pcap
 ```    
 

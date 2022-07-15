@@ -41,11 +41,13 @@ FlowMeter observes the following features from packets and constructs flows.
 
 * **Flow duration**
 
+    * Total flow duration
 
 With these observed features, FlowMeter can robustly differentiate between malicious and benign flows. 
 
+## Examples
 
-Following are a few visual examples of how these metrics help us differentiate between benign and malicious traffic.
+The following examples illustrate how FlowMeter can differentiate between benign and malicious traffic, based on the above metrics:
 
 | ![FlowMeter fwdPacketSizeMax](../img/analyse-size.png) | ![FlowMeter fwdPacketSizeTotal](../img/analyse-length.png) |
 | :--: | :--: |
