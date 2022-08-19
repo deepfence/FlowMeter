@@ -30,9 +30,9 @@ Use FlowMeter if you wish to build and operate machine-learning models on networ
 
 ## Quick Start
 
-For full instructions, refer to the [FLowMeter Documentation](https://docs.deepfence.io/flowmeter).
+For full instructions, refer to the [FlowMeter Documentation](https://docs.deepfence.io/flowmeter).
 
-![flowmeter](https://user-images.githubusercontent.com/26308648/165217670-fe68e122-efdd-49d8-b491-a60d4a039eab.gif)
+![FlowMeter QuickStart](docs/docs/flowmeter/img/flowmeter.svg)
 
 ## Who uses FlowMeter?
 
