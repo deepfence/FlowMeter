@@ -4,6 +4,8 @@ title: FlowMeter QuickStart
 
 # Quick Start
 
+![FlowMeter Demo](img/flowmeter.svg)
+
 ## Build FlowMeter
 
 Build FlowMeter from source using the golang toolchain.

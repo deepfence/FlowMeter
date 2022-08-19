@@ -17,6 +17,7 @@
 pkg/.DS_Store
 pkg/flowOutput/.DS_Store
 .gitignore
+!docs/.gitignore
 pkg/packets/.DS_Store
 pkg/ml/.DS_Store
 .DS_Store
