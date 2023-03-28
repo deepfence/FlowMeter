@@ -5,7 +5,7 @@
 [![Slack](https://img.shields.io/badge/slack-@deepfence-blue.svg?logo=slack)](https://join.slack.com/t/deepfence-community/shared_invite/zt-podmzle9-5X~qYx8wMaLt9bGWwkSdgQ)
 
 # FlowMeter
-FlowMeter is an experimental utility built to analyse and classify packets by looking at packet headers. 
+FlowMeter is an experimental utility built for analysing and classifing packets by looking at packet headers. 
 
 ## Primary design goals:
 
