@@ -4,8 +4,8 @@ import (
 	"flag"
 	"log"
 
-	"github.com/deepfence/FlowMeter-fix/pkg/constants"
-	"github.com/deepfence/FlowMeter-fix/pkg/packetAnalyzer"
+	"github.com/deepfence/FlowMeter/pkg/constants"
+	"github.com/deepfence/FlowMeter/pkg/packetAnalyzer"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 
