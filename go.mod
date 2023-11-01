@@ -1,4 +1,4 @@
-module github.com/Prathu122/FlowMeter
+module github.com/deepfence/FlowMeter
 
 go 1.18
 
