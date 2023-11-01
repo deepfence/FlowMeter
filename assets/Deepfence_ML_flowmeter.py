@@ -30,9 +30,10 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     precision_recall_curve,
-    plot_confusion_matrix,
     f1_score,
 )
+
+from sklearn.metrics import plot_confusion_matrix
 
 
 from collections import Counter
