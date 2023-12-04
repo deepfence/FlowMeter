@@ -33,7 +33,7 @@ from sklearn.metrics import (
     plot_confusion_matrix,
     f1_score,
 )
-
+from sklearn.metrics import plot_confusion_matrix
 
 from collections import Counter
 from sklearn.datasets import make_classification
