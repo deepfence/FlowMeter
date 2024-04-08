@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
+	"os"
+	"os/signal"
 
 	"github.com/deepfence/FlowMeter/pkg/constants"
 	"github.com/deepfence/FlowMeter/pkg/packetAnalyzer"
@@ -12,14 +15,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func packetCollect() {
+func main() {
 	ch := make(chan gopacket.Packet)
-	done := make(chan struct{}) // signal channel
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 
 	// Command line arguments.
 	ifLiveCapturePtr := flag.Bool("ifLiveCapture", false, "a bool")
 	filenamePtr := flag.String("fname", "foo", "a string")
-	maxNumPacketsPtr := flag.Int("maxNumPackets", 42, "an int")
+	maxNumPacketsPtr := flag.Int("maxNumPackets", 1024, "an int")
 	ifLocalIPKnownPtr := flag.Bool("ifLocalIPKnown", false, "a bool")
 	localIPPtr := flag.String("localIP", "143.198.72.237", "a string")
 
@@ -57,24 +61,19 @@ func packetCollect() {
 		log.Fatal(constants.Err)
 	}
 
-	go packetAnalyzer.FlowMeter(ch, done, maxNumPackets, localIP, ifLocalIPKnown, filename)
+	go packetAnalyzer.FlowMeter(ctx, ch, cancel, maxNumPackets, localIP, ifLocalIPKnown, filename)
 
 	defer constants.Handle.Close()
 
 	packetSource := gopacket.NewPacketSource(constants.Handle, constants.Handle.LinkType())
 
-loop:
 	for packet := range packetSource.Packets() {
 		select {
 		case ch <- packet:
-		case <-done:
-			close(ch)
-			close(done)
-			break loop
+		case <-ctx.Done():
+			return
 		}
 	}
-}
-
-func main() {
-	packetCollect()
+	close(ch)
+	<-ctx.Done()
 }

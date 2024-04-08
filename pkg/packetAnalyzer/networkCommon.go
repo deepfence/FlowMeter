@@ -3,6 +3,7 @@ package packetAnalyzer
 import (
 	"log"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +14,7 @@ import (
 )
 
 // Function to get information from packet layers.
-func PacketInfo(packet gopacket.Packet) (string, string, int, time.Time) {
+func PacketInfo(packet gopacket.Packet, decoded []gopacket.LayerType, ip4 *layers.IPv4, ip6 *layers.IPv6, tcp *layers.TCP, udp *layers.UDP) (string, string, int, time.Time) {
 	var connection string = ""
 	packetData := strings.Split(packet.String(), "\n")[0]
 
@@ -35,43 +36,46 @@ func PacketInfo(packet gopacket.Packet) (string, string, int, time.Time) {
 	// }
 
 	// Let's see if the packet is IP (even though the ether type told us)
-	ipLayer := packet.Layer(layers.LayerTypeIPv4)
-	protocol := ""
-	if ipLayer != nil {
-		//logrus.Info("IPv4 layer detected.")
-		ip, _ := ipLayer.(*layers.IPv4)
+
+	// IP layer variables:
+	// Version (Either 4 or 6)
+	// IHL (IP Header Length in 32-bit words)
+	// TOS, Length, Id, Flags, FragOffset, TTL, Protocol (TCP?),
+	// Checksum, SrcIP, DstIP
+	if slices.Contains(decoded, layers.LayerTypeIPv4) {
+
+		connection += ip4.SrcIP.String() + "--" + ip4.DstIP.String() + "--" + ip4.Protocol.String()
+	} else if slices.Contains(decoded, layers.LayerTypeIPv6) {
 
 		// IP layer variables:
 		// Version (Either 4 or 6)
 		// IHL (IP Header Length in 32-bit words)
 		// TOS, Length, Id, Flags, FragOffset, TTL, Protocol (TCP?),
 		// Checksum, SrcIP, DstIP
-		connection += ip.SrcIP.String() + "--" + ip.DstIP.String() + "--" + ip.Protocol.String()
-		protocol = ip.Protocol.String()
+		connection += ip6.SrcIP.String() + "--" + ip6.DstIP.String() + "--" + ip6.NextHeader.String()
+	} else {
+		// Return early
+		return connection, "nil", packetSize, packetTime
 	}
 
 	// Let's see if the packet is TCP
-	tcpLayer := packet.Layer(layers.LayerTypeTCP)
-	if tcpLayer != nil {
+	if slices.Contains(decoded, layers.LayerTypeTCP) {
 		//logrus.Info("TCP layer detected.")
-		tcp, _ := tcpLayer.(*layers.TCP)
 		connection += "--" + tcp.SrcPort.String() + "--" + tcp.DstPort.String()
 
 		// TCP layer variables:
 		// SrcPort, DstPort, Seq, Ack, DataOffset, Window, Checksum, Urgent
 		// Bool flags: FIN, SYN, RST, PSH, ACK, URG, ECE, CWR, NS
 		// logrus.Info("Sequence number: ", tcp.Seq)
-	}
-
-	// Let's see if the packet is TCP
-	udpLayer := packet.Layer(layers.LayerTypeUDP)
-	if udpLayer != nil {
+	} else if slices.Contains(decoded, layers.LayerTypeUDP) {
 		//logrus.Info("UDP layer detected.")
-		udp, _ := udpLayer.(*layers.UDP)
 		connection += "--" + udp.SrcPort.String() + "--" + udp.DstPort.String()
 
 		// UDP layer variables:
 		// SrcPort, DstPort, Length, Checksum
+	} else {
+		// Return early
+		return connection, "nil", packetSize, packetTime
 	}
 
 	// // Iterate over all layers, printing out each layer type
@@ -98,11 +102,16 @@ func PacketInfo(packet gopacket.Packet) (string, string, int, time.Time) {
 
 	// Check for errors
 	if err := packet.ErrorLayer(); err != nil {
+
 		logrus.Info("Error decoding some part of the packet:", err)
+		for _, l := range packet.Layers() {
+			layer := gopacket.LayerString(l)
+			logrus.Info("Error decoding some part of the packet:", layer)
+		}
 	}
 
 	// Return if protocol=TCP/UDP and if packets have correct time stamps.
-	if (protocol == "TCP") || (protocol == "UDP") && (packetTime.String()[0:19] != "0001-01-01 00:00:00") {
+	if packetTime.String()[0:19] != "0001-01-01 00:00:00" {
 		return connection, Reverse5Tuple(connection), packetSize, packetTime
 	} else {
 		return connection, "nil", packetSize, packetTime

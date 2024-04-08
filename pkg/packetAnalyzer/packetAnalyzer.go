@@ -1,6 +1,7 @@
 package packetAnalyzer
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -10,16 +11,14 @@ import (
 	"github.com/deepfence/FlowMeter/pkg/fileProcess"
 	"github.com/deepfence/FlowMeter/pkg/ml"
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/sirupsen/logrus"
 )
 
 // This go routine communicates through channels and computes flow stats
-func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, localIP string, ifLocalIPKnown bool, fname string) error {
-	flowDict := make(map[string][]interface{})
-	flowSave := make(map[string][]interface{})
-
-	// Import model parameters (weight, scaling - mean, standard deviations)
-	wt, intercept, meanScale, stdScale := ml.ModelParameters()
+func FlowMeter(ctx context.Context, ch chan gopacket.Packet, cancel context.CancelFunc, maxNumPackets int, localIP string, ifLocalIPKnown bool, fname string) error {
+	flowDict := make(map[string]constants.FlowData)
+	flowSave := make(map[string]common.FlowFeatures)
 
 	numPackets := 0
 
@@ -29,7 +28,39 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 		return err
 	}
 
-	for packet := range ch {
+	var (
+		eth     layers.Ethernet
+		ip4     layers.IPv4
+		tcp     layers.TCP
+		udp     layers.UDP
+		ip6     layers.IPv6
+		payload gopacket.Payload
+		tls     layers.TLS
+	)
+
+	parser := gopacket.NewDecodingLayerParser(
+		layers.LayerTypeEthernet,
+		&eth, &ip4, &ip6, &tcp, &udp, &tls, &payload, &tls)
+	decodedUnderlying := [4]gopacket.LayerType{}
+	decoded := decodedUnderlying[:0]
+
+	defer cancel()
+
+	var (
+		packet gopacket.Packet
+		open   bool
+	)
+
+	for {
+
+		select {
+		case packet, open = <-ch:
+		case <-ctx.Done():
+			return nil
+		}
+		if !open {
+			break
+		}
 		numPackets++
 
 		if constants.Verbose {
@@ -39,7 +70,11 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 			}
 		}
 
-		packet5Tuple, reverseTuple, packetSize, packetTime := PacketInfo(packet)
+		err = parser.DecodeLayers(packet.Data(), &decoded)
+		if err != nil {
+			logrus.Debug(err)
+		}
+		packet5Tuple, reverseTuple, packetSize, packetTime := PacketInfo(packet, decoded, &ip4, &ip6, &tcp, &udp)
 
 		if reverseTuple != "nil" {
 			ok, ok1, ok2 := true, true, true
@@ -81,182 +116,284 @@ func FlowMeter(ch chan gopacket.Packet, done chan struct{}, maxNumPackets int, l
 			fwdPacketSize, bwdPacketSize := 0, 0
 
 			if !ok {
-				flowDict[packet5Tuple] = []interface{}{srcIPFlow, dstIPFlow, protocolFlow, srcPortFlow, dstPortFlow, 0 * time.Microsecond, 1, 0, 0, packetSize, float64(packetSize), 0.0, packetSize, packetSize, fwdPacketSize, bwdPacketSize, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, 0 * time.Microsecond, packetTime, packetTime, packetTime, packetTime, false, []int{}, []int{}, []time.Duration{}, []time.Duration{}, []time.Duration{}, []int{packetSize}}
+				flowData := constants.FlowData{
+					SrcIP:              srcIPFlow,
+					DstIP:              dstIPFlow,
+					Protocol:           protocolFlow,
+					SrcPort:            srcPortFlow,
+					DstPort:            dstPortFlow,
+					FlowDuration:       0 * time.Microsecond,
+					FlowLength:         1,
+					FwdFlowLength:      0,
+					BwdFlowLength:      0,
+					PacketSizeTotal:    packetSize,
+					PacketSizeMean:     float64(packetSize),
+					PacketSizeStd:      0.0,
+					PacketSizeMin:      packetSize,
+					PacketSizeMax:      packetSize,
+					FwdPacketSizeTotal: fwdPacketSize,
+					BwdPacketSizeTotal: bwdPacketSize,
+					FwdPacketSizeMean:  0.0,
+					BwdPacketSizeMean:  0.0,
+					FwdPacketSizeStd:   0.0,
+					BwdPacketSizeStd:   0.0,
+					FwdPacketSizeMin:   0,
+					BwdPacketSizeMin:   0,
+					FwdPacketSizeMax:   0,
+					BwdPacketSizeMax:   0,
+					IATTotal:           0 * time.Microsecond,
+					IATMean:            0 * time.Microsecond,
+					IATStd:             0 * time.Microsecond,
+					IATMin:             0 * time.Microsecond,
+					IATMax:             0 * time.Microsecond,
+					FwdIATTotal:        0 * time.Microsecond,
+					BwdIATTotal:        0 * time.Microsecond,
+					FwdIATMean:         0 * time.Microsecond,
+					BwdIATMean:         0 * time.Microsecond,
+					FwdIATStd:          0 * time.Microsecond,
+					BwdIATStd:          0 * time.Microsecond,
+					FwdIATMin:          0 * time.Microsecond,
+					BwdIATMin:          0 * time.Microsecond,
+					FwdIATMax:          0 * time.Microsecond,
+					BwdIATMax:          0 * time.Microsecond,
+					FlowStartTime:      packetTime,
+					FlowPrevTime:       packetTime,
+					FwdFlowPrevTime:    packetTime,
+					BwdFlowPrevTime:    packetTime,
+					MinPacketsBool:     false,
+					FwdPacketSizeArr:   []int{},
+					BwdPacketSizeArr:   []int{},
+					FwdIATArr:          []time.Duration{},
+					BwdIATArr:          []time.Duration{},
+					IATArr:             []time.Duration{},
+					PacketSizeArr:      []int{packetSize},
+				}
 
 				if direction == "fwd" {
 					fwdPacketSize, bwdPacketSize = 1.0*packetSize, 0.0
 
-					flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]].([]int), fwdPacketSize)
-					flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeTotal"]] = fwdPacketSize
-					flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeMean"]] = float64(fwdPacketSize)
-					flowDict[packet5Tuple][constants.MapKeys["fwdFlowLength"]] = 1
+					flowData.FwdPacketSizeArr = append(flowData.FwdPacketSizeArr, fwdPacketSize)
+					flowData.FwdPacketSizeTotal = fwdPacketSize
+					flowData.FwdPacketSizeMean = float64(fwdPacketSize)
+					flowData.FwdFlowLength = 1
 				} else {
 					fwdPacketSize, bwdPacketSize = 0.0, 1.0*packetSize
 
-					flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeArr"]].([]int), bwdPacketSize)
-					flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeTotal"]] = bwdPacketSize
-					flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeMean"]] = float64(bwdPacketSize)
-					flowDict[packet5Tuple][constants.MapKeys["bwdFlowLength"]] = 1
+					flowData.BwdPacketSizeArr = append(flowData.BwdPacketSizeArr, bwdPacketSize)
+					flowData.BwdPacketSizeTotal = bwdPacketSize
+					flowData.BwdPacketSizeMean = float64(bwdPacketSize)
+					flowData.BwdFlowLength = 1
 				}
 
+				flowDict[packet5Tuple] = flowData
+
 			} else {
-				if flowDict[packet5Tuple][constants.MapKeys["flowLength"]].(int) <= constants.MaxPacketsPerFlow {
-					currIAT := packetTime.Sub(flowDict[packet5Tuple][constants.MapKeys["flowPrevTime"]].(time.Time))
-					flowDict[packet5Tuple][constants.MapKeys["IATArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["IATArr"]].([]time.Duration), currIAT)
+
+				flowData := flowDict[packet5Tuple]
+				if flowData.FlowLength <= constants.MaxPacketsPerFlow {
+					currIAT := packetTime.Sub(flowData.FlowPrevTime)
+					flowData.IATArr = append(flowData.IATArr, currIAT)
 
 					if direction == "fwd" {
 						fwdPacketSize, bwdPacketSize = packetSize, 0
 
-						flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]].([]int), fwdPacketSize)
-						flowDict[packet5Tuple][constants.MapKeys["packetSizeArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["packetSizeArr"]].([]int), fwdPacketSize)
-						flowDict[packet5Tuple][constants.MapKeys["fwdFlowLength"]] = flowDict[packet5Tuple][constants.MapKeys["fwdFlowLength"]].(int) + 1
+						flowData.FwdPacketSizeArr = append(flowData.FwdPacketSizeArr, fwdPacketSize)
+						flowData.PacketSizeArr = append(flowData.PacketSizeArr, fwdPacketSize)
+						flowData.FwdFlowLength = flowData.FwdFlowLength + 1
 
-						if flowDict[packet5Tuple][constants.MapKeys["fwdFlowLength"]] == 1 {
-							flowDict[packet5Tuple][constants.MapKeys["fwdFlowPrevTime"]] = packetTime
+						if flowData.FwdFlowLength == 1 {
+							flowData.FwdFlowPrevTime = packetTime
 						} else {
-							currFwdIAT := packetTime.Sub(flowDict[packet5Tuple][constants.MapKeys["fwdFlowPrevTime"]].(time.Time))
+							currFwdIAT := packetTime.Sub(flowData.FwdFlowPrevTime)
 
-							flowDict[packet5Tuple][constants.MapKeys["fwdIATTotal"]] = flowDict[packet5Tuple][constants.MapKeys["fwdIATTotal"]].(time.Duration) + currFwdIAT
-							flowDict[packet5Tuple][constants.MapKeys["fwdIATArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["fwdIATArr"]].([]time.Duration), currFwdIAT)
-							fwdIATMin, fwdIATMax := common.MinMaxTimeDuration(flowDict[packet5Tuple][constants.MapKeys["fwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][constants.MapKeys["fwdIATMean"]] = common.MeanTimeDuration(flowDict[packet5Tuple][constants.MapKeys["fwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][constants.MapKeys["fwdIATStd"]] = common.StdDevTimeDuration(flowDict[packet5Tuple][constants.MapKeys["fwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][constants.MapKeys["fwdIATMin"]] = fwdIATMin
-							flowDict[packet5Tuple][constants.MapKeys["fwdIATMax"]] = fwdIATMax
-							flowDict[packet5Tuple][constants.MapKeys["fwdFlowPrevTime"]] = packetTime
+							flowData.FwdIATTotal = flowData.FwdIATTotal + currFwdIAT
+							flowData.FwdIATArr = append(flowData.FwdIATArr, currFwdIAT)
+							fwdIATMin, fwdIATMax := common.MinMaxTimeDuration(flowData.FwdIATArr)
+							flowData.FwdIATMean = common.MeanTimeDuration(flowData.FwdIATArr)
+							flowData.FwdIATStd = common.StdDevTimeDuration(flowData.FwdIATArr)
+							flowData.FwdIATMin = fwdIATMin
+							flowData.FwdIATMax = fwdIATMax
+							flowData.FwdFlowPrevTime = packetTime
 						}
 
 					}
 					if direction == "bwd" {
 						fwdPacketSize, bwdPacketSize = 0, packetSize
-						flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeArr"]].([]int), bwdPacketSize)
-						flowDict[packet5Tuple][constants.MapKeys["packetSizeArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["packetSizeArr"]].([]int), bwdPacketSize)
-						flowDict[packet5Tuple][constants.MapKeys["bwdFlowLength"]] = flowDict[packet5Tuple][constants.MapKeys["bwdFlowLength"]].(int) + 1
+						flowData.BwdPacketSizeArr = append(flowData.BwdPacketSizeArr, bwdPacketSize)
+						flowData.PacketSizeArr = append(flowData.PacketSizeArr, bwdPacketSize)
+						flowData.BwdFlowLength = flowData.BwdFlowLength + 1
 
-						if flowDict[packet5Tuple][constants.MapKeys["bwdFlowLength"]] == 1 {
-							flowDict[packet5Tuple][constants.MapKeys["bwdFlowPrevTime"]] = packetTime
+						if flowData.BwdFlowLength == 1 {
+							flowData.BwdFlowPrevTime = packetTime
 						} else {
-							currBwdIAT := packetTime.Sub(flowDict[packet5Tuple][constants.MapKeys["bwdFlowPrevTime"]].(time.Time))
+							currBwdIAT := packetTime.Sub(flowData.BwdFlowPrevTime)
 
-							flowDict[packet5Tuple][constants.MapKeys["bwdIATTotal"]] = flowDict[packet5Tuple][constants.MapKeys["bwdIATTotal"]].(time.Duration) + currBwdIAT
-							flowDict[packet5Tuple][constants.MapKeys["bwdIATArr"]] = append(flowDict[packet5Tuple][constants.MapKeys["bwdIATArr"]].([]time.Duration), currBwdIAT)
-							bwdIATMin, bwdIATMax := common.MinMaxTimeDuration(flowDict[packet5Tuple][constants.MapKeys["bwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][constants.MapKeys["bwdIATMean"]] = common.MeanTimeDuration(flowDict[packet5Tuple][constants.MapKeys["bwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][constants.MapKeys["bwdIATStd"]] = common.StdDevTimeDuration(flowDict[packet5Tuple][constants.MapKeys["bwdIATArr"]].([]time.Duration))
-							flowDict[packet5Tuple][constants.MapKeys["bwdIATMin"]] = bwdIATMin
-							flowDict[packet5Tuple][constants.MapKeys["bwdIATMax"]] = bwdIATMax
-							flowDict[packet5Tuple][constants.MapKeys["bwdFlowPrevTime"]] = packetTime
+							flowData.BwdIATTotal = flowData.BwdIATTotal + currBwdIAT
+							flowData.BwdIATArr = append(flowData.BwdIATArr, currBwdIAT)
+							bwdIATMin, bwdIATMax := common.MinMaxTimeDuration(flowData.BwdIATArr)
+							flowData.BwdIATMean = common.MeanTimeDuration(flowData.BwdIATArr)
+							flowData.BwdIATStd = common.StdDevTimeDuration(flowData.BwdIATArr)
+							flowData.BwdIATMin = bwdIATMin
+							flowData.BwdIATMax = bwdIATMax
+							flowData.BwdFlowPrevTime = packetTime
 						}
 
 					}
-					flowDict[packet5Tuple][constants.MapKeys["flowDuration"]] = packetTime.Sub(flowDict[packet5Tuple][constants.MapKeys["flowStartTime"]].(time.Time))
+					flowData.FlowDuration = packetTime.Sub(flowData.FlowStartTime)
 
-					flowDict[packet5Tuple][constants.MapKeys["flowLength"]] = flowDict[packet5Tuple][constants.MapKeys["flowLength"]].(int) + 1
+					flowData.FlowLength = flowData.FlowLength + 1
 
-					IATArr := append(flowDict[packet5Tuple][constants.MapKeys["fwdIATArr"]].([]time.Duration), flowDict[packet5Tuple][constants.MapKeys["bwdIATArr"]].([]time.Duration)...)
-					//flowDict[packet5Tuple][constants.MapKeys["IATTotal"]] = flowDict[packet5Tuple][constants.MapKeys["IATTotal"]].(time.Duration) + currIAT
-					flowDict[packet5Tuple][constants.MapKeys["IATTotal"]] = flowDict[packet5Tuple][constants.MapKeys["fwdIATTotal"]].(time.Duration) + flowDict[packet5Tuple][constants.MapKeys["bwdIATTotal"]].(time.Duration)
+					IATArr := append(flowData.FwdIATArr, flowData.BwdIATArr...)
+					//flowData.IATTotal = flowData.IATTotal.(time.Duration) + currIAT
+					flowData.IATTotal = flowData.FwdIATTotal + flowData.BwdIATTotal
 					IATMin, IATMax := common.MinMaxTimeDuration(IATArr)
-					flowDict[packet5Tuple][constants.MapKeys["IATMin"]] = IATMin
-					flowDict[packet5Tuple][constants.MapKeys["IATMax"]] = IATMax
-					flowDict[packet5Tuple][constants.MapKeys["IATMean"]] = common.MeanTimeDuration(IATArr)
+					flowData.IATMin = IATMin
+					flowData.IATMax = IATMax
+					flowData.IATMean = common.MeanTimeDuration(IATArr)
 					if len(IATArr) > 1 {
-						flowDict[packet5Tuple][constants.MapKeys["IATStd"]] = common.StdDevTimeDuration(IATArr)
+						flowData.IATStd = common.StdDevTimeDuration(IATArr)
 					}
 
-					flowDict[packet5Tuple][constants.MapKeys["flowPrevTime"]] = packetTime
+					flowData.FlowPrevTime = packetTime
 
-					fwdPacketSizeMin, fwdPacketSizeMax := common.MinMax(flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]].([]int))
-					bwdPacketSizeMin, bwdPacketSizeMax := common.MinMax(flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeArr"]].([]int))
+					fwdPacketSizeMin, fwdPacketSizeMax := common.MinMax(flowData.FwdPacketSizeArr)
+					bwdPacketSizeMin, bwdPacketSizeMax := common.MinMax(flowData.BwdPacketSizeArr)
 
-					flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeTotal"]] = flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeTotal"]].(int) + fwdPacketSize
-					flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeTotal"]] = flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeTotal"]].(int) + bwdPacketSize
+					flowData.FwdPacketSizeTotal = flowData.FwdPacketSizeTotal + fwdPacketSize
+					flowData.BwdPacketSizeTotal = flowData.BwdPacketSizeTotal + bwdPacketSize
 
-					flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeMean"]] = common.Mean(flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]].([]int))
-					flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeMean"]] = common.Mean(flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeArr"]].([]int))
+					flowData.FwdPacketSizeMean = common.Mean(flowData.FwdPacketSizeArr)
+					flowData.BwdPacketSizeMean = common.Mean(flowData.BwdPacketSizeArr)
 
-					flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeStd"]] = common.StdDev(flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]].([]int))
-					flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeStd"]] = common.StdDev(flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeArr"]].([]int))
+					flowData.FwdPacketSizeStd = common.StdDev(flowData.FwdPacketSizeArr)
+					flowData.BwdPacketSizeStd = common.StdDev(flowData.BwdPacketSizeArr)
 
-					flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeMin"]] = fwdPacketSizeMin
-					flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeMin"]] = bwdPacketSizeMin
+					flowData.FwdPacketSizeMin = fwdPacketSizeMin
+					flowData.BwdPacketSizeMin = bwdPacketSizeMin
 
-					flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeMax"]] = fwdPacketSizeMax
-					flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeMax"]] = bwdPacketSizeMax
+					flowData.FwdPacketSizeMax = fwdPacketSizeMax
+					flowData.BwdPacketSizeMax = bwdPacketSizeMax
 
-					// flowDict[packet5Tuple][constants.MapKeys["packetSizeArr"]]
-					flowDict[packet5Tuple][constants.MapKeys["packetSizeTotal"]] = flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeTotal"]].(int) + flowDict[packet5Tuple][constants.MapKeys["bwdPacketSizeTotal"]].(int)
-					//packetSizeArr := append(flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]].([]int), flowDict[packet5Tuple][constants.MapKeys["fwdPacketSizeArr"]].([]int)...)
-					packetSizeMin, packetSizeMax := common.MinMax(flowDict[packet5Tuple][constants.MapKeys["packetSizeArr"]].([]int))
-					flowDict[packet5Tuple][constants.MapKeys["packetSizeMin"]] = packetSizeMin
-					flowDict[packet5Tuple][constants.MapKeys["packetSizeMax"]] = packetSizeMax
-					flowDict[packet5Tuple][constants.MapKeys["packetSizeMean"]] = common.Mean(flowDict[packet5Tuple][constants.MapKeys["packetSizeArr"]].([]int))
-					flowDict[packet5Tuple][constants.MapKeys["packetSizeStd"]] = common.StdDev(flowDict[packet5Tuple][constants.MapKeys["packetSizeArr"]].([]int))
+					// flowDaTa.packetSizeArr
+					flowData.PacketSizeTotal = flowData.FwdPacketSizeTotal + flowData.BwdPacketSizeTotal
+					//packetSIzeArr := append(flowData.fwdPacketSizeArr.([]int), flowData.fwdPacketSizeArr.([]int)...)
+					packetSizeMin, packetSizeMax := common.MinMax(flowData.PacketSizeArr)
+					flowData.PacketSizeMin = packetSizeMin
+					flowData.PacketSizeMax = packetSizeMax
+					flowData.PacketSizeMean = common.Mean(flowData.PacketSizeArr)
+					flowData.PacketSizeStd = common.StdDev(flowData.PacketSizeArr)
 
-					if flowDict[packet5Tuple][constants.MapKeys["flowLength"]].(int) >= constants.MinPacketsPerFlow {
-						flowDict[packet5Tuple][constants.MapKeys["minPacketsBool"]] = true
-					}
+					flowData.MinPacketsBool = flowData.FlowLength >= constants.MinPacketsPerFlow
 				}
 
+				flowDict[packet5Tuple] = flowData
 			}
 
-			//logrus.Info("SaveInterval: ", constants.SaveIntervals)
 			_, ifSave := common.IfPresentInSlice(constants.SaveIntervals, numPackets)
 
 			if ifSave {
-				// if flowDict[packet5Tuple][constants.MapKeys["flowLength"]].(int) <= constants.MaxPacketsPerFlow {
-
-				if len(flowDict) > 0 {
-					for flow5Tuple, values := range flowDict {
-						features := []float64{}
-
-						// logrus.Info(flow5Tuple, flowDict[flow5Tuple][constants.MapKeys["flowLength"]], constants.MinPacketsPerFlow, numPackets, " - Flow stats.")
-
-						if (flowDict[flow5Tuple][constants.MapKeys["flowLength"]].(int) >= constants.MinPacketsPerFlow) && (flowDict[flow5Tuple][constants.MapKeys["flowDuration"]].(time.Duration) >= constants.MinTimeDuration) {
-							// Populate flowSave map with flows for which number of packets is beyond a given threshold.
-							flowSave[flow5Tuple] = values
-
-							// Create feature struct with float64 datatypes for features.
-							flow := common.FlowData(values)
-
-							// Create feature array for machine learning (ML) analysis.
-							features = append(features, flow.FlowDuration, flow.FlowLength, flow.FwdFlowLength, flow.BwdFlowLength, flow.PacketSizeTotal, flow.PacketSizeMean, flow.PacketSizeStd, flow.PacketSizeMin, flow.PacketSizeMax, flow.FwdPacketSizeTotal, flow.BwdPacketSizeTotal, flow.FwdPacketSizeMean, flow.BwdPacketSizeMean, flow.FwdPacketSizeStd, flow.BwdPacketSizeStd, flow.FwdPacketSizeMin, flow.BwdPacketSizeMin, flow.FwdPacketSizeMax, flow.BwdPacketSizeMax, flow.IATMean, flow.IATStd, flow.IATMin, flow.IATMax, flow.FwdIATTotal, flow.BwdIATTotal, flow.FwdIATMean, flow.BwdIATMean, flow.FwdIATStd, flow.BwdIATStd, flow.FwdIATMin, flow.BwdIATMin, flow.FwdIATMax, flow.BwdIATMax, flow.FlowLengthPerTime, flow.FwdFlowLengthPerTime, flow.BwdFlowLengthPerTime, flow.PacketSizeTotalPerTime, flow.FwdPacketSizeTotalPerTime, flow.BwdPacketSizeTotalPerTime)
-
-							if constants.IfFlowStatsVerbose {
-								// Scaling of array and ML prediction
-								scaledFeature := ml.StdScaler(features, meanScale, stdScale)
-								yPred := ml.GetCategory(ml.BinaryClassifier(ml.Sigmoid(ml.NetInput(wt, intercept, scaledFeature))))
-
-								logrus.Info(flow5Tuple, ": ", yPred, " ", ml.Sigmoid(ml.NetInput(wt, intercept, scaledFeature)))
-								logrus.Info(" ")
-
-								// Print flow statistics.
-								for j := 0; j < 41; j++ {
-									logrus.Info(constants.MapLabels[j], ": ", flowDict[flow5Tuple][j])
-								}
-								logrus.Info("Flow Length Per Time(ms) : ", float64(flowDict[flow5Tuple][constants.MapKeys["flowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Millisecond))
-								logrus.Info("Forward Flow Length Per Time(ms) : ", float64(flowDict[flow5Tuple][constants.MapKeys["fwdFlowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Millisecond))
-								logrus.Info("Backward Flow Length Per Time(ms) : ", float64(flowDict[flow5Tuple][constants.MapKeys["bwdFlowLength"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Millisecond))
-								logrus.Info("Packet Size Per Time(ms) : ", float64(flowDict[flow5Tuple][constants.MapKeys["packetSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Millisecond))
-								logrus.Info("Forward Packet Size Per Time(ms) : ", float64(flowDict[flow5Tuple][constants.MapKeys["fwdPacketSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Millisecond))
-								logrus.Info("Backward Packet Size Per Time(ms) : ", float64(flowDict[flow5Tuple][constants.MapKeys["bwdPacketSizeTotal"]].(int))/float64(values[constants.MapKeys["flowDuration"]].(time.Duration)/time.Millisecond))
-								logrus.Info(" ")
-								logrus.Info(" ")
-							}
-						}
-
-					}
-
-				}
-
-				fileProcess.FileSave(flowSave, constants.MapKeys, constants.FlowOutputFolder+"/"+fname+"_flow_stats")
+				saveFlow(flowDict, flowSave)
+				fileProcess.FileSave(flowSave, constants.FlowOutputFolder+"/"+fname+"_flow_stats")
 			}
 		}
 		if numPackets == maxNumPackets {
-			logrus.Info("Target number packets reached.")
-			done <- struct{}{}
-			return nil
+			break
 		}
 	}
+	if numPackets != maxNumPackets {
+		logrus.Info("Total number of packets reached: ", numPackets)
+	} else {
+		logrus.Info("Target number packets reached: ", maxNumPackets)
+	}
+	saveFlow(flowDict, flowSave)
+
+	fileProcess.FileSave(flowSave, constants.FlowOutputFolder+"/"+fname+"_flow_stats")
+
 	return nil
+}
+
+func saveFlow(flowDict map[string]constants.FlowData, flowSave map[string]common.FlowFeatures) {
+
+	// Import model parameters (weight, scaling - mean, standard deviations)
+	wt, intercept, meanScale, stdScale := ml.ModelParameters()
+
+	if len(flowDict) > 0 {
+		for flow5Tuple, flowData := range flowDict {
+			// logrus.Info(flow5Tuple, flowDict[flow5Tuple][constants.MapKeys["flowLength"]], constants.MinPacketsPerFlow, numPackets, " - Flow stats.")
+
+			if (flowData.FlowLength >= constants.MinPacketsPerFlow) && (flowData.FlowDuration >= constants.MinTimeDuration) {
+				// Populate flowSave map with flows for which number of packets is beyond a given threshold.
+				flow := common.FlowData2FlowFeatures(flowData)
+				flowSave[flow5Tuple] = flow
+
+				var features []float64
+
+				// Create feature array for machine learning (ML) analysis.
+				features = append(features,
+					flow.FlowDuration,
+					flow.FlowLength,
+					flow.FwdFlowLength,
+					flow.BwdFlowLength,
+					flow.PacketSizeTotal,
+					flow.PacketSizeMean,
+					flow.PacketSizeStd,
+					flow.PacketSizeMin,
+					flow.PacketSizeMax,
+					flow.FwdPacketSizeTotal,
+					flow.BwdPacketSizeTotal,
+					flow.FwdPacketSizeMean,
+					flow.BwdPacketSizeMean,
+					flow.FwdPacketSizeStd,
+					flow.BwdPacketSizeStd,
+					flow.FwdPacketSizeMin,
+					flow.BwdPacketSizeMin,
+					flow.FwdPacketSizeMax,
+					flow.BwdPacketSizeMax,
+					flow.IATMean,
+					flow.IATStd,
+					flow.IATMin,
+					flow.IATMax,
+					flow.FwdIATTotal,
+					flow.BwdIATTotal,
+					flow.FwdIATMean,
+					flow.BwdIATMean,
+					flow.FwdIATStd,
+					flow.BwdIATStd,
+					flow.FwdIATMin,
+					flow.BwdIATMin,
+					flow.FwdIATMax,
+					flow.BwdIATMax,
+					flow.FlowLengthPerTime,
+					flow.FwdFlowLengthPerTime,
+					flow.BwdFlowLengthPerTime,
+					flow.PacketSizeTotalPerTime,
+					flow.FwdPacketSizeTotalPerTime,
+					flow.BwdPacketSizeTotalPerTime)
+
+				if constants.IfFlowStatsVerbose {
+					// Scaling of array and ML prediction
+					scaledFeature := ml.StdScaler(features, meanScale, stdScale)
+					yPred := ml.GetCategory(ml.BinaryClassifier(ml.Sigmoid(ml.NetInput(wt, intercept, scaledFeature))))
+
+					logrus.Info(flow5Tuple, ": ", yPred, " ", ml.Sigmoid(ml.NetInput(wt, intercept, scaledFeature)))
+					logrus.Info(" ")
+
+					// Print flow statistics.
+					for j := 0; j < len(features); j++ {
+						logrus.Info(constants.MapLabels[j], ": ", features[j])
+					}
+
+					logrus.Info("Flow Length Per Time(ms) : ", float64(flowData.FlowLength)/flow.FlowDuration/float64(time.Millisecond))
+					logrus.Info("Forward Flow Length Per Time(ms) : ", float64(flowData.FwdFlowLength)/flow.FlowDuration/float64(time.Millisecond))
+					logrus.Info("Backward Flow Length Per Time(ms) : ", float64(flowData.BwdFlowLength)/flow.FlowDuration/float64(time.Millisecond))
+					logrus.Info("Packet Size Per Time(ms) : ", float64(flowData.PacketSizeTotal)/flow.FlowDuration/float64(time.Millisecond))
+					logrus.Info("Forward Packet Size Per Time(ms) : ", float64(flowData.FwdPacketSizeTotal)/flow.FlowDuration/float64(time.Millisecond))
+					logrus.Info("Backward Packet Size Per Time(ms) : ", float64(flowData.BwdPacketSizeTotal)/flow.FlowDuration/float64(time.Millisecond))
+					logrus.Info("\n")
+				}
+			}
+		}
+	} else {
+		logrus.Debug("No entry to save")
+	}
 }

@@ -12,13 +12,17 @@ Build FlowMeter from source using the golang toolchain.
 
 ```bash
 git clone https://github.com/deepfence/FlowMeter.git
-cd FlowMeter/pkg
+cd FlowMeter
 
 # Install libpcap package.
 # Ubuntu/Debian:  sudo apt-get install libpcap0.8-dev
 # RHEL/Centos:    sudo yum install install libpcap-devel
 
-go build -o flowmeter .
+make
+```
+or
+```
+go build cmd/flowmeter.go
 ```
 
 ## Obtain Sample Training Data
