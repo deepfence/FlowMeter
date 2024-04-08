@@ -10,7 +10,7 @@ import (
 )
 
 // Save file.
-func FileSave(flowSave map[string][]interface{}, mapKeys map[string]int, fname string) {
+func FileSave(flowSave map[string]common.FlowFeatures, fname string) {
 	// logrus.Info(flowSave)
 
 	file, err := os.Create(fname + ".csv")
@@ -27,8 +27,7 @@ func FileSave(flowSave map[string][]interface{}, mapKeys map[string]int, fname s
 
 	data := []interface{}{}
 
-	for flow5Tuple, values := range flowSave {
-		flow := common.FlowData(values)
+	for flow5Tuple, flow := range flowSave {
 
 		flowArr := []interface{}{flow5Tuple, flow.SrcIP, flow.DstIP, flow.Protocol, flow.SrcPort, flow.DstPort, flow.FlowDuration, flow.FlowLength, flow.FwdFlowLength, flow.BwdFlowLength, flow.PacketSizeTotal, flow.PacketSizeMean, flow.PacketSizeStd, flow.PacketSizeMin, flow.PacketSizeMax, flow.FwdPacketSizeTotal, flow.BwdPacketSizeTotal, flow.FwdPacketSizeMean, flow.BwdPacketSizeMean, flow.FwdPacketSizeStd, flow.BwdPacketSizeStd, flow.FwdPacketSizeMin, flow.BwdPacketSizeMin, flow.FwdPacketSizeMax, flow.BwdPacketSizeMax, flow.IATMean, flow.IATStd, flow.IATMin, flow.IATMax, flow.FwdIATTotal, flow.BwdIATTotal, flow.FwdIATMean, flow.BwdIATMean, flow.FwdIATStd, flow.BwdIATStd, flow.FwdIATMin, flow.BwdIATMin, flow.FwdIATMax, flow.BwdIATMax}
 
