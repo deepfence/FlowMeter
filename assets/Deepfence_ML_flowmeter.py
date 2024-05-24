@@ -30,34 +30,44 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     precision_recall_curve,
-    plot_confusion_matrix,
     f1_score,
 )
-from sklearn.metrics import plot_confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
 
 from collections import Counter
 from sklearn.datasets import make_classification
 import copy
 import warnings
+import os
+
 
 
 # # Data
+# Get the absolute path to the directory where the script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# ### File path
-folder = "../pkg/flowOutput/"
+# Construct the folder path relative to the script's location
+folder = os.path.join(script_dir, "../pkg/flowOutput/")
+folder = os.path.abspath(folder)
+
+fname_malicious = 'webgoat_flow_stats.csv'
 fname_benign = "2017-05-02_kali-normal22_flow_stats.csv"
-fname_malicious = "webgoat_flow_stats.csv"
+
+file_path_malicious = os.path.join(folder, fname_malicious)
+file_path_benign = os.path.join(folder, fname_benign)
+
 
 # ### Malicious: Webgoat
 # Malicious flows
-pd_malicious = pd.read_csv(folder + fname_malicious)
+import pandas as pd
+pd_malicious = pd.read_csv(file_path_malicious)
 pd_malicious.drop(pd_malicious.tail(1).index, inplace=True)
 pd_malicious["Type"] = "Malicious"
 
 
 # ### Benign
 # Benign flows
-pd_benign = pd.read_csv(folder + fname_benign)
+pd_benign = pd.read_csv(file_path_benign)
 # pd_benign.drop(pd_webgoat.tail(1).index, inplace=True)
 pd_benign["Type"] = "Benign"
 
@@ -151,7 +161,7 @@ def clean_dataset(df):
     df_X = df.iloc[:, :-1]
     df_Y = df.iloc[:, -1]
 
-    indices_to_keep = ~df_X.isin([np.nan, np.inf, -np.inf]).any(1)
+    indices_to_keep = ~df_X.isin([np.nan, np.inf, -np.inf]).any(axis=1)
     return df_X[indices_to_keep].astype(np.float64).values, df_Y[indices_to_keep].values
 
 
@@ -262,10 +272,14 @@ best_fit_model.fit(X_train_scale, y_train2.astype("int32"))
 
 
 # ### Save parameters.
-np.savetxt("../pkg/ml/parameters/mean.txt", scaler.mean_, delimiter=",")
-np.savetxt("../pkg/ml/parameters/std.txt", scaler.scale_, delimiter=",")
-np.savetxt("../pkg/ml/parameters/weights.txt", best_fit_model.coef_[0], delimiter=",")
-np.savetxt("../pkg/ml/parameters/intercept.txt", best_fit_model.intercept_, delimiter=",")
+
+directory = "../pkg/ml/parameters/"
+os.makedirs(directory, exist_ok=True)
+
+np.savetxt(os.path.join(directory, "mean.txt"), scaler.mean_, delimiter=",")
+np.savetxt(os.path.join(directory, "std.txt"), scaler.scale_, delimiter=",")
+np.savetxt(os.path.join(directory, "weights.txt"), best_fit_model.coef_[0], delimiter=",")
+np.savetxt(os.path.join(directory, "intercept.txt"), best_fit_model.intercept_, delimiter=",")
 
 
 # ### Feature importance scores
